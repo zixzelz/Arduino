@@ -2,19 +2,23 @@
 #include <RtcDS1302.h>
 
 const int kPowerLoadPin = 8;
-const int kEnableVoltagePin = 4;
+const int kEnableVoltagePin = A1;
 const int kPowerVoltagePin = A0;
 
 ThreeWire myWire(6,7,5); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
 
-const int kDelayStateTime = 10; // sec
-const int kActiveStateTime = 5; // sec
+const int kDelayStateTime = 5; // sec
+const int kMaxActiveStateTime = 120; // sec
+const int kShutDowtTimeOut = 5; // sec
 
 const int kVoltageSensorMin = 0; // minimum sensor value
 const int kVoltageSensorMax = 1023; // maximum sensor value
 const int kVoltageMin = 0; // mV
 const int kVoltageMax = 19000; // mV
+
+String give_power_level_command = "give_power_level\n";
+String shut_dowt_command = "shut_dowt\n";
 
 void setup() {
     Serial.begin(9600);
@@ -67,16 +71,14 @@ void setupRtcTime() {
 
 void loop() {
 
-    rfcDelay(kDelayStateTime);
-
     turnOn();
     Serial.println("on");
 
     float voltage = getVoltage(kEnableVoltagePin, kPowerVoltagePin);
     Serial.print("Voltage: ");
-    Serial.println(voltage);
+    Serial.println(String(voltage));
 
-    rfcDelay(kActiveStateTime);
+    handleActiveState();
 
     turnOff();
     Serial.println("off");
@@ -85,6 +87,51 @@ void loop() {
     RtcDateTime currentTimeStamp = Rtc.GetDateTime();
     printDateTime(currentTimeStamp);
     Serial.println();
+
+    rfcDelay(kDelayStateTime);
+}
+
+void handleActiveState() {
+//    rfcDelay(kMaxActiveStateTime);
+
+    RtcDateTime timeTimeStamp = Rtc.GetDateTime();
+    RtcDateTime currentTimeStamp = Rtc.GetDateTime();
+    bool completed = false;
+    while (currentTimeStamp - timeTimeStamp < kMaxActiveStateTime && !completed) {
+        completed = checkCommand();
+      
+        currentTimeStamp = Rtc.GetDateTime();
+    }
+}
+
+bool checkCommand() {
+
+    bool completed = false;
+
+    if (Serial.available()) {
+      String command = readLine();
+      if (command.equals(give_power_level_command)) {
+          float voltage = getVoltage(kEnableVoltagePin, kPowerVoltagePin);
+          Serial.println(String(voltage));
+      }
+      else if (command.equals(shut_dowt_command)) {
+          completed = true;
+      }
+    }
+  
+    return completed;
+}
+
+String readLine() {
+  String readString = "";
+  while (Serial.available()) {
+    delay(3);  //delay to allow buffer to fill 
+    if (Serial.available() > 0) {
+      char c = Serial.read();  //gets one byte from serial buffer
+      readString += c; //makes the string readString
+    }
+  }
+  return readString;
 }
 
 void turnOn() {
@@ -92,6 +139,7 @@ void turnOn() {
 }
 
 void turnOff() {
+    delay(kShutDowtTimeOut * 1000);
     digitalWrite(kPowerLoadPin, LOW);
 }
 
