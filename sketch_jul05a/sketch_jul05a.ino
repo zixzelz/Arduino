@@ -8,9 +8,9 @@ const int kPowerVoltagePin = A0;
 ThreeWire myWire(6,7,5); // IO, SCLK, CE
 RtcDS1302<ThreeWire> Rtc(myWire);
 
-const int kDelayStateTime = 5; // sec
-const int kMaxActiveStateTime = 120; // sec
-const int kShutDowtTimeOut = 5; // sec
+const int kDelayStateTime = 10 * 60; // sec
+const int kMaxActiveStateTime = 5 * 60; // sec
+const int kShutDowtTimeOut = 30; // sec
 
 const int kVoltageSensorMin = 0; // minimum sensor value
 const int kVoltageSensorMax = 1023; // maximum sensor value
@@ -18,7 +18,7 @@ const int kVoltageMin = 0; // mV
 const int kVoltageMax = 19000; // mV
 
 String give_power_level_command = "give_power_level\n";
-String shut_dowt_command = "shut_dowt\n";
+String shut_down_command = "shut_down\n";
 
 void setup() {
     Serial.begin(9600);
@@ -74,10 +74,6 @@ void loop() {
     turnOn();
     Serial.println("on");
 
-    float voltage = getVoltage(kEnableVoltagePin, kPowerVoltagePin);
-    Serial.print("Voltage: ");
-    Serial.println(String(voltage));
-
     handleActiveState();
 
     turnOff();
@@ -114,7 +110,7 @@ bool checkCommand() {
           float voltage = getVoltage(kEnableVoltagePin, kPowerVoltagePin);
           Serial.println(String(voltage));
       }
-      else if (command.equals(shut_dowt_command)) {
+      else if (command.equals(shut_down_command)) {
           completed = true;
       }
     }
@@ -147,9 +143,6 @@ float getVoltage(int keyPin, int sensorPin) {
     digitalWrite(keyPin, HIGH);
     float sensorValue = analogRead(sensorPin);
     digitalWrite(keyPin, LOW);
-  
-    Serial.print(sensorValue);
-    Serial.print(" > ");
 
     float voltage = map(sensorValue, kVoltageSensorMin, kVoltageSensorMax, kVoltageMin, kVoltageMax) / 1000.0;
     return voltage;
